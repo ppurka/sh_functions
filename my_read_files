@@ -1,0 +1,403 @@
+#!/bin/bash
+
+#. `which my_bash_functions`
+# Functions which call this will anyway source the above
+
+# {{{ readfilename comes here
+help_read_filename() {
+    info "readfilename -h|--help: == help!!"
+    info "readfilename <0|1> [<suffix>]"
+    info "${red}BUG!${normal} If a dir is named foo and a file is named fool.bar, then you can enter foo by typing 'foo/.'"
+    info "I know how to fix this bug, but it renders the code clumsy and so I won't do it ;)"
+    info "Examples of Usage:"
+    info "Eg. readfilename 1 tex  == match .tex files in any directory"
+    info "Eg. readfilename 0 tex  == match .tex files in current directory only"
+    info "Eg. readfilename 0      == match any file in current directory only"
+}
+
+
+
+
+# Typically a terminal has these many rows. If there are more results than
+# these, those will anyway not come up in plain view, so no reason to print
+# out those
+_set_rows() {
+    _total_rows=$(tput lines)                   # 80 (81)
+    # There is one blank at top of screen. and 3 used spaces at bottom
+    # Output could be:
+    #   <file results>                      -   2-41
+    #   ^ Possible files ^                  -   at 42
+    #   <dir results>                       -   43-78 (43-79)
+    #   ^ Possible dirs ^                   -   at 79 (80)
+    #   Input file/dirname                  -   at 80 (81)
+    _rows_half=$(($_total_rows/2))              # 40
+    _rows_half_plus_one=$(($_rows_half + 1))    # 41
+    _rows_full=$(($_total_rows - 3))            # 77 (78)
+    _rows_full_plus_one=$(($_rows_full + 1))    # 78 (79)
+    _rows_diff=$(($_rows_full - $_rows_half - 1)) # 36 (37)
+    [[ $_total_rows -le 8 ]] && info "Hey dood! I need more space here" \
+        && sleep 2
+}
+
+
+trap "_set_rows" WINCH
+
+# Usage read_filename <0|1> [<suffix>]  -- example: read_filename 1 ogg
+read_filename() {
+    
+    [[ $# -eq 0 ]] && help_read_filename && exit 1
+
+    # Declare the following variables
+    local hilite="\x1b[00;30;42m"
+    local filename
+    local INPUT_X
+    local INPUT
+    global FILEPATH
+    local SUFFIX
+    # Indicate whether we are recursing through directories
+    local DIR=$1
+    [[ $# -eq 2 ]] && SUFFIX=".$2" || SUFFIX=""
+
+    _set_rows
+    if [[ $DIR -eq 0 ]]; then
+        _rows_half=$_rows_full
+        _rows_half_plus_one=$_rows_full_plus_one
+    fi
+
+
+
+    # Remember the old pwd:
+    local OLD_PWD=`pwd`
+    
+
+  # Start of outer loop
+  while [[ -z $filename || -d "$filename" ]]; do
+    [[ -d "$filename" ]] && cd "$filename"
+
+
+    # Reinitialize all of these to null
+    filename=
+    INPUT_X=
+    INPUT=
+
+    # clear the screen -- the magic begins from here :)
+    clear
+    echo        # Avoid condition where top line scrolls off  the screen
+    
+    # Initial list of the file names found
+    find "${INPUT_X}"*"${SUFFIX}" -maxdepth 0 -type f -print 2>/dev/null | \
+        head -n $_rows_half
+    tput cup $_rows_half_plus_one 0
+
+    # Initial list of directories + good looking output
+    centered_output dash " ^ Possible files ^ "
+    [[ $DIR -eq 1 ]] && {
+        find "${INPUT_X}"* -maxdepth 0 -type d -printf "%f\t\t" \
+            2>/dev/null | head -n $_rows_diff
+        tput cup $_rows_full_plus_one 0
+        #echo
+        centered_output dash " ^ Possible directories ^ "
+    }
+    
+    
+    # Do the loop until complete
+    while true; do
+        
+        if [[ $DIR -eq 0 && $_rows_half -ne $_rows_full ]]; then
+            _rows_half=$_rows_full
+            _rows_half_plus_one=$_rows_full_plus_one
+        fi
+
+        # black on green  -- for completion part
+        if [[ "$INPUT_X" ]]; then
+            echo -ne "  $yellow*$normal Enter filename [$INPUT_X$hilite$EXT$normal ?]: $INPUT_X"
+        elif [[ $DIR -eq 1 ]]; then
+            infon "Enter filename (use .. to go up one directory):"
+        else
+            infon "Enter filename:"
+        fi
+
+        # Read each character as it is typed
+        read -n 1 INPUT
+
+        # If input is null, then complete the rest of the stuff and dump it
+        # into $filename and exit from this loop
+        if [[ -z "$INPUT" ]]; then
+            if [[ "$INPUT_X" ]]; then
+                filename="${INPUT_X}${EXT}"
+                break
+            else
+                help_read_filename
+                die "No filename provided"
+            fi
+        fi
+
+        # else clear the screen for the next best matches
+        clear
+        echo        # Avoid condition where top line scrolls off the screen
+
+        # Whenever you press a backspace, it sends a non-printable character
+        # delete doesn't work since it sends three (!!) characters and read
+        # takes in only one
+        if echo -e "$INPUT" | egrep -q -e "[[:print:]]"; then
+            INPUT_X="$INPUT_X$INPUT"
+        elif [[ ${#INPUT_X} -gt 0 ]]; then
+            INPUT_X="${INPUT_X:0:$[${#INPUT_X}-1]}"
+        fi
+
+
+        # If the DIR variable is turned on, and we received a .., then go up
+        # one directory
+        [[ $DIR -eq 1 && "$INPUT_X" = ".." ]] && {
+            cd ..
+            INPUT_X= 
+            FILEPATH=`pwd`
+        }
+
+
+        # Find all the best matches to files and output them
+        OUTPUT=`find "${INPUT_X}"* -maxdepth 0 -type f -print 2>/dev/null | egrep "${SUFFIX}$" | head -n $_rows_half`
+        echo "${OUTPUT}"
+
+
+        # If the extended input is non-zero, then we need to find the extension
+        # to it.
+        if [[ "${INPUT_X}" ]]; then
+            # If there are no matching files, and DIR is on, then complete dirs
+            # instead of files
+            if [[ -z "${OUTPUT}" && $DIR -eq 1 ]]; then
+                EXT=`find "${INPUT_X}"* -maxdepth 0 -type d -print 2>/dev/null | \
+                    sed -ne "1s:^${INPUT_X}\(.*\)$:\1:p"`
+            else
+                EXT=`echo "${OUTPUT}" | sed -ne "1s:^${INPUT_X}\(.*\)$:\1:p"`
+            fi
+        fi
+
+        tput cup $_rows_half_plus_one 0
+        # Again need for some nicely formatted output
+        centered_output dash " ^ Possible files ^ "
+        [[ $DIR -eq 1 ]] && {
+            find ${INPUT_X}* -maxdepth 0 -type d -printf "%f\t\t" 2>/dev/null
+            tput cup $_rows_full_plus_one 0
+            #echo
+            centered_output dash " ^ Possible directories ^ "
+        }
+        
+    done
+
+    # Completed inner loop, so $filename is either null or has some info in it.
+    if [[ -z "$FILEPATH" ]]; then
+        FILEPATH="$filename"
+    else
+        FILEPATH="$FILEPATH/$filename"
+    fi
+  done
+  # Completed outer loop here
+
+    # Return to the dir from which this function was called
+    cd "$OLD_PWD"
+
+}
+
+# }}}
+
+# A modified read_filename which has only directory listings #{{{
+# Usage read_dirname [<dir>]
+read_dirname() {
+    
+    # Declare the following variables
+    local hilite="\x1b[00;30;42m"
+    local filename
+    local INPUT_X
+    local INPUT
+    FILEPATH=
+    local SUFFIX
+
+    # Remember the old pwd:
+    local OLD_PWD=`pwd`
+    
+    _set_rows
+
+    # Reinitialize all of these to null
+    filename=""
+    INPUT_X=
+    INPUT=
+
+    # Initial list of the dir names found
+    [[ "$1" ]] && {
+        cd "$1" || die "Could not change directory to $blue$1"
+    }
+
+    # The following is not required :-S
+    # ls -dxC *;
+    # Initial list of directories + good looking output
+    # echo -ne "\n\n-----^^^^ ${green}Available subject directories$normal
+    # ^^^^-----\n\n"
+    
+    # Do the loop until complete
+    while true
+    do
+        # black on green  -- for completion part
+
+        # Trying to jazz up the display!
+        # clear the screen -- the magic begins from here :)
+        clear
+        echo        # Avoid condition where top line scrolls off  the screen
+        if [[ "$INPUT_X" ]]; then
+            # The following displays the directories,
+            # highlighting the typed in portion in green
+            ls -dxC * | sed -e \
+                "1,${_rows_full}s/\(${INPUT_X}\)/${green}\1${normal}/Ig"
+            tput cup $_rows_full_plus_one 0
+            centered_output dash " ^ Possible directories ^ "
+            echo -ne " $yellow *$normal Enter the directory name [$INPUT_X$hilite$EXT$normal ?]: $INPUT_X"
+        else
+            ls -dxC * | head -n $_rows_full
+            tput cup $_rows_full_plus_one 0
+            centered_output dash " ^ Possible directories ^ "
+            echo -ne " $yellow *$normal Enter the directory name: "
+        fi
+
+        # Read each character as it is typed
+        read -n 1 INPUT
+
+        # If input is null, then complete the rest of the stuff and dump it
+        # into $filename and exit from this loop
+        if [[ -z "$INPUT" ]]; then
+            if [[ "$INPUT_X" ]]; then
+                filename="${INPUT_X}${EXT}"
+                break
+            else
+                info "No directory name provided"
+                return
+            fi
+        fi
+
+        # Whenever you press a backspace, it sends a non-printable character
+        # delete doesn't work since it sends three (!!) characters and read
+        # takes in only one
+        if echo -e "$INPUT" | egrep -q -e "[[:print:]]"; then
+            INPUT_X="$INPUT_X$INPUT"
+        elif [[ ${#INPUT_X} -gt 0 ]]; then
+            INPUT_X="${INPUT_X:0:$[${#INPUT_X}-1]}"
+        fi
+
+        # Find all the best matches to dirs and output them
+        OUTPUT=`find "${INPUT_X}"* -maxdepth 0 -type d -print 2>/dev/null`;
+
+        # If the extended input is non-zero, then we need to find the extension
+        # to it.
+        if [[ ! -z "${INPUT_X}" ]]; then
+            EXT=`echo "${OUTPUT}" | sed -ne "1s:^${INPUT_X}\(.*\)$:\1:p"`;
+        fi
+
+    done
+
+    # Completed inner loop, so $filename is either null or has some info in it.
+    FILEPATH="$filename"
+
+    # Return to the dir from which this function was called
+    cd "$OLD_PWD"
+
+} #}}}
+
+# A modified read_filename which has only directory listings #{{{
+# Usage read_dirname_short [<dir>]
+read_dirname_short() {
+    
+    # Declare the following variables
+    local hilite="\x1b[00;30;42m"
+    local filename
+    local INPUT_X
+    local INPUT
+    FILEPATH=
+    local SUFFIX
+
+
+    # Remember the old pwd:
+    local OLD_PWD=`pwd`
+    
+    _set_rows
+
+    # Reinitialize all of these to null
+    filename=
+    INPUT_X=
+    INPUT=
+
+    # Initial list of the dir names found
+    [[ "$1" ]] && {
+        cd "$1" || die "Could not change directory to $blue$1"
+    }
+
+    # The following is not required :-S
+    # ls -dxC *;
+    # Initial list of directories + good looking output
+    # echo -ne "\n\n-----^^^^ ${green}Available subject directories$normal
+    # ^^^^-----\n\n"
+    
+    # Do the loop until complete
+    while true
+    do
+        # black on green  -- for completion part
+
+        # Trying to jazz up the display!
+        # clear the screen -- the magic begins from here :)
+        clear
+        echo        # Avoid condition where top line scrolls off  the screen
+        if [[ "$INPUT_X" ]]; then
+            # The following displays the directories,
+            # highlighting the typed in portion in green
+            ls -dxC * | sed -ne "s/\(${INPUT_X}\)/${green}\1${normal}/Igp" \
+                | head -n $_rows_full
+            tput cup $_rows_full_plus_one 0
+            centered_output dash " ^ Possible directories ^ "
+            echo -ne " $yellow *$normal Enter the directory name [$INPUT_X$hilite$EXT$normal ?]: $INPUT_X"
+        else
+            ls -dxC * | head -n $_rows_full
+            tput cup $_rows_full_plus_one 0
+            centered_output dash " ^ Possible directories ^ "
+            echo -ne " $yellow *$normal Enter the directory name: "
+        fi
+
+        # Read each character as it is typed
+        read -n 1 INPUT
+
+        # If input is null, then complete the rest of the stuff and dump it
+        # into $filename and exit from this loop
+        if [[ -z "$INPUT" ]]; then
+            if [[ "$INPUT_X" ]]; then
+                filename="${INPUT_X}${EXT}"
+                break
+            else
+                info "No directory name provided"
+                return
+            fi
+        fi
+
+        # Whenever you press a backspace, it sends a non-printable character
+        # delete doesn't work since it sends three (!!) characters and read
+        # takes in only one
+        if echo -e "$INPUT" | egrep -q -e "[[:print:]]"; then
+            INPUT_X="$INPUT_X$INPUT"
+        elif [[ ${#INPUT_X} -gt 0 ]]; then
+            INPUT_X="${INPUT_X:0:$[${#INPUT_X}-1]}"
+        fi
+
+        # Find all the best matches to dirs and output them
+        OUTPUT=`find "${INPUT_X}"* -maxdepth 0 -type d -print 2>/dev/null`
+
+        # If the extended input is non-zero, then we need to find the extension
+        # to it.
+        if [[ "${INPUT_X}" ]]; then
+            EXT=`echo "${OUTPUT}" | sed -ne "1s:^${INPUT_X}\(.*\)$:\1:p"`
+        fi
+
+    done
+
+    # Completed inner loop, so $filename is either null or has some info in it.
+    FILEPATH="$filename"
+
+    # Return to the dir from which this function was called
+    cd "$OLD_PWD"
+
+} #}}}
