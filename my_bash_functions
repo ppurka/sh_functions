@@ -1,8 +1,20 @@
 #!/bin/bash
 
-###   Functions I use frequently  ###
+        #---------------------------------------------------#
+        #               Functions I use frequently          #
+        #                                   -ppurka         #
+        #---------------------------------------------------#
 
-###   Set the colors that will be used 
+        #--------------------- Changelog -------------------#
+        # 05/11/2009:   Added run_loop and support for color#
+        #               in centered_output                  #
+        # <05/01/2009:  Umpteen number of untracked changes #
+        # ??/??/200[78] First version of this script. This  #
+        #               is meant to be 'imported' by other  #
+        #               bash scripts                        #
+        #---------------------------------------------------#
+
+# Set the colors that will be used 
 blue="\x1b[1;34m"
 bold="\x1b[1m"
 cyan="\x1b[1;36m"
@@ -39,7 +51,7 @@ infor() {
 Err(){
     local color="$red" msg="ERROR"
     [[ "$1" = "-w" ]] && color="$pink" && msg="WARNING"
-    echo -e "  $color*$normal [$color $msg!!$normal ] ${@}" >&2 ;
+    echo -e "  $color*$normal [$color $msg!!$normal ] ${@/-w/}" >&2 ;
 }
 
 die() {
@@ -51,7 +63,8 @@ die() {
 # where text is less than cols characters in length
 centered_output() {
     local cols=$(tput cols)
-    local len=${#2}
+    local len="$(echo "$2" | sed -e 's#\\x1[bB]\[[^m]\+m##g')"
+    len=${#len}
     if [ $len -ge $cols ]; then
         echo -e "$2"
         return
@@ -70,16 +83,38 @@ centered_output() {
         fi
     fi
     if [ $1 = dash ]; then
-        echo -e "${D_ASH:1:$begin}$reverse$2$normal${D_ASH:1:$end}"
+        echo -e "${D_ASH:1:$begin}$reverse${2//\\x1[bB]\[0m/\x1b[0m$reverse}\
+$normal${D_ASH:1:$end}"
     else
-        echo -e "${BLANK:1:$begin}$reverse$2$normal${BLANK:1:$end}"
+        echo -e "${BLANK:1:$begin}$reverse${2//\\x1[bB]\[0m/\x1b[0m$reverse}\
+$normal${BLANK:1:$end}"
     fi
 }
 
+# Usage: run_loop <start count> <end count> "text w/ loop var __cnt__ txt"
+# __cnt__ will be replaced by the countdown variable
+# No checks are made to ensure that $1 and $2 are really integers
+run_loop() {
+    local clr="$(tput el)"
+    if [[ $1 -gt $2 ]]; then
+        for (( i=$1; i>=$2; i-- )); do
+            infor "${3//__cnt__/$i}$clr"
+            sleep 1
+        done
+    elif [[ $1 -le $2 ]]; then
+        for (( i=$1; i<=$2; i++ )); do
+            infor "${3//__cnt__/$i}$clr"
+            sleep 1
+        done
+    fi
+    echo
+}
+
+
+# Usage: show_osd <percentage> <text>
 show_osd () {
     if ! which osd_cat >& /dev/null || [[ -z $DISPLAY ]]; then return 1; fi
-    osd_cat -a 1 -s 1 -f '-*-helvetica-medium-r-*-*-14-*-*-*-*-*-*-*' \
+    osd_cat -a 1 -s 1 -f '-*-helvetica-*-r-*-*-15-*-*-*-*-*-*-*' \
         -p bottom -A center -c red -d 1 -b percentage -P $1 -T "$2"
-    #osd_cat -a 1 -s 1 -f '-*-dejavu sans mono-medium-r-*-*-*-*-*-*-*-*-*-*' \
 }
 
