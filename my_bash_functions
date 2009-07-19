@@ -6,6 +6,7 @@
         #---------------------------------------------------#
 
         #--------------------- Changelog -------------------#
+        # 07/17/2009:   Fixed bug in centered_output        #
         # 05/11/2009:   Added run_loop and support for color#
         #               in centered_output                  #
         # <05/01/2009:  Umpteen number of untracked changes #
@@ -32,13 +33,13 @@ COLORS=( blue bold cyan green normal pink red underline yellow )
 # Print out information.
 # Usage: info "Whatever you want to print"
 info(){
-    echo -e "  $yellow*$normal ${@}";
+    echo -e "  $yellow*$normal ${@}"
 }
 
 # Print out information without ending with a newline. This adds a space at end
 # Usage: infon "Whatever you want to print"
 infon(){
-    echo -ne "  $yellow*$normal ${@} ";
+    echo -ne "  $yellow*$normal ${@} "
 }
 
 # info with carriage return at end
@@ -51,12 +52,12 @@ infor() {
 Err(){
     local color="$red" msg="ERROR"
     [[ "$1" = "-w" ]] && color="$pink" && msg="WARNING"
-    echo -e "  $color*$normal [$color $msg!!$normal ] ${@/-w/}" >&2 ;
+    echo -e "  $color*$normal [$color $msg!!$normal ] ${@/-w/}" >&2
 }
 
 die() {
-    Err "$@";
-    exit 1;
+    Err "$@"
+    exit 1
 }
 
 # Usage: centered_output dash|blank "text string"
@@ -65,7 +66,7 @@ centered_output() {
     local cols=$(tput cols)
     local len="$(echo "$2" | sed -e 's#\\x1[bB]\[[^m]\+m##g')"
     len=${#len}
-    if [ $len -ge $cols ]; then
+    if [[ $len -ge $cols ]]; then
         echo -e "$2"
         return
     fi
@@ -77,12 +78,12 @@ centered_output() {
     local D_ASH="${BLANK// /-}"
     local begin=$(( $cols/2 - $len/2 ));    # Length of dash|blank before text
     local end=$(( $cols - $begin - $len )); # Length of dash|blank after text
-    if [ -z "$2" ]; then
-        if [ $1 = dash ]; then echo $D_ASH$D_ASH; return;
-        else echo; return;
+    if [[ -z "$2" ]]; then
+        if [[ $1 = dash ]]; then echo $D_ASH; return
+        else echo; return
         fi
     fi
-    if [ $1 = dash ]; then
+    if [[ $1 = dash ]]; then
         echo -e "${D_ASH:1:$begin}$reverse${2//\\x1[bB]\[0m/\x1b[0m$reverse}\
 $normal${D_ASH:1:$end}"
     else
