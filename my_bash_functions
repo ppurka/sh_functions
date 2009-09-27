@@ -6,6 +6,8 @@
         #---------------------------------------------------#
 
         #--------------------- Changelog -------------------#
+        # 09/25/2009:   Update to make a call to my_dash_fn #
+        # 09/19/2009:   Update to include e_remote          #
         # 07/17/2009:   Fixed bug in centered_output        #
         # 05/11/2009:   Added run_loop and support for color#
         #               in centered_output                  #
@@ -15,6 +17,14 @@
         #               bash scripts                        #
         #---------------------------------------------------#
 
+. `which my_dash_functions 2> /dev/null` || \
+    echo -e "    \x1b[1;35mWarning!\x1b[0m The script \
+\x1b[1;32mmy_dash_functions\x1b[0m was not found in your \$PATH
+    Please ensure that the script is available and executable, otherwise
+    some functionality may be missing
+    "
+
+    
 # Set the colors that will be used 
 blue="\x1b[1;34m"
 bold="\x1b[1m"
@@ -109,13 +119,5 @@ run_loop() {
         done
     fi
     echo
-}
-
-
-# Usage: show_osd <percentage> <text>
-show_osd () {
-    if ! which osd_cat >& /dev/null || [[ -z $DISPLAY ]]; then return 1; fi
-    osd_cat -a 1 -s 1 -f '-*-helvetica-*-r-*-*-15-*-*-*-*-*-*-*' \
-        -p bottom -A center -c red -d 1 -b percentage -P $1 -T "$2"
 }
 
