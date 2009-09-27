@@ -1,0 +1,60 @@
+#!/bin/dash
+
+        #---------------------------------------------------#
+        #               Functions I use frequently          #
+        #                                   -ppurka         #
+        #---------------------------------------------------#
+
+        #--------------------- Changelog -------------------#
+        # 09/25/2009:   First version to have it as a dash  #
+        #---------------------------------------------------#
+
+# This calls the dbus interface of e17. The options provided on the command
+# line is actually appended directly to the command in the function as:
+# dbus-send ..... org.enlightenment.wm."$@"
+# e_restart <Core>/<Module>/<Profile>.<function>
+e_remote() {
+    local DBUS="dbus-send --print-reply=literal \
+        --dest=org.enlightenment.wm.service \
+        /org/enlightenment/wm/RemoteObject org.enlightenment.wm."
+    local QDBUS="qdbus org.enlightenment.wm.service \
+        /org/enlightenment/wm/RemoteObject org.enlightenment.wm."
+    case "$1" in
+        Module.List)    $DBUS$@ ;;
+        *)  $QDBUS$@ ;;
+    esac
+}
+
+# Usage: show_passive <heading> <text> [<time in seconds>] [<icon>]
+# <icon> = trailing path without /usr/share/icons/oxygen/48x48
+# <time> and <icon> are optional arguments the defaults being
+# 10sec and e.png respectively
+show_passive() {
+    local timeout=10000
+    local icon
+    if [ -n "$DISPLAY" ]; then
+        [ -n "$X_USER" ] || local X_USER="$USER"
+        if pgrep -u $X_USER enlightenment > /dev/null 2>&1 && \
+            e_remote Module.List | grep -qs 'notification .*1'; then
+            [ -n "$3" ] && \
+                if test "$3" -gt 0 2> /dev/null; then
+                    local timeout=$(( $3*1000 ))
+                else
+                    icon="$3"
+                fi
+            [ -n "$4" ] && icon="$4"
+            [ -z "$icon" ] && \
+                icon="/usr/share/enlightenment/doc/enlightenment.png" || \
+                icon="/usr/share/icons/oxygen/48x48/$icon"
+            e-notify-send -t $timeout -i file://$icon "$1" "$2<br>" &
+        else
+            /usr/local/bin/displaymessage --center --passive "$1:
+$2" 10 &
+        fi
+    else
+        /bin/echo -e "  * \x1b[7m$1\x1b[0m:
+    $2
+    "
+    fi
+}
+
