@@ -1,4 +1,4 @@
-#!/bin/dash
+#!/bin/bash
 
         #---------------------------------------------------#
         #               Functions I use frequently          #
@@ -6,6 +6,7 @@
         #---------------------------------------------------#
 
         #--------------------- Changelog -------------------#
+        # 02/05/2011:   Stupid POSIX stuff. Make it bash    #
         # 09/25/2009:   First version to have it as a dash  #
         #---------------------------------------------------#
 
@@ -32,17 +33,17 @@ e_remote() {
 show_passive() {
     local timeout=10000
     local icon
-    [ -n "$X_USER" ] || local X_USER="$USER"
+    [[ "$X_USER" ]] || local X_USER="$USER"
     if pgrep -u $X_USER enlightenment > /dev/null 2>&1 && \
         e_remote Module.List | grep -qs 'notification .*1'; then
-        [ -n "$3" ] && \
+        [[ "$3" ]] && \
             if test "$3" -gt 0 2> /dev/null; then
                 local timeout=$(( $3*1000 ))
             else
                 icon="$3"
             fi
-        [ -n "$4" ] && icon="$4"
-        [ -z "$icon" ] && \
+        [[ "$4" ]] && icon="$4"
+        [[ -z "$icon" ]] && \
             icon="/usr/share/enlightenment/doc/enlightenment.png" || \
             icon="/usr/share/icons/oxygen/48x48/$icon"
         e-notify-send -t $timeout -i file://$icon "$1" "$2<br>" &
