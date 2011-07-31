@@ -6,6 +6,7 @@
         #---------------------------------------------------#
 
         #--------------------- Changelog -------------------#
+        # 07/31/2011:   Add the function show_progress      #
         # 09/25/2009:   Update to make a call to my_dash_fn #
         # 09/19/2009:   Update to include e_remote          #
         # 07/17/2009:   Fixed bug in centered_output        #
@@ -121,3 +122,34 @@ run_loop() {
     echo
 }
 
+# Show a progress bar in pure bash
+# Usage: echo -e "some text\n$count/$total" | show_progress
+#        echo -e "\n\n"
+# $total is the max number of items, and $count is the current number
+# This function doesn't bother with the length of "some text"
+# It assumes that "some text" fits within the window width. If it doesn't
+# then it is the responsibility of the parent script.
+# The output is of the form
+# some text
+# █████████████████████------------------               190/  203
+show_progress() {
+    local -i cols=$(tput cols) progress=0
+    local -i lesscols=$(( $cols - 12 ))         # ' xxxxx/xxxxx' at end
+    printf -vblank "%${lesscols}s" ""
+    local cl="$(tput el)" dash="${blank// /-}" line output
+    while read line; do
+        if [[ "$output" ]]; then
+            # This is the 2nd line of input $count/$total
+            echo -e "$output$cl"
+            output=""
+            progress=$(( $lesscols*${line%/*}/${line#*/} ))
+            [[ $progress -eq 0 ]] && progress=1
+            echo -ne "$reverse${blank: -${progress}}$normal\
+${dash:0:$(( $lesscols - $progress ))} \
+$( printf "%5d/%5d" ${line%/*} ${line#*/} )\r"
+            tput cuu1
+        else
+            output="$line"
+        fi
+    done
+}
