@@ -6,6 +6,9 @@
         #---------------------------------------------------#
 
         #--------------------- Changelog -------------------#
+        # 09/13/2011:   Make line fit cols in show_progress #
+        #               Use counter=0/1 instead of output   #
+        #               Fix output of Err -w (use shift)    #
         # 07/31/2011:   Add the function show_progress      #
         # 09/25/2009:   Update to make a call to my_dash_fn #
         # 09/19/2009:   Update to include e_remote          #
@@ -59,11 +62,12 @@ infor() {
 }
 
 # Print out error information.
-# Usage: Err "Whatever you want to print"
+# Usage: Err "For printing errors"
+# Usage: Err -w "For printing warnings"
 Err(){
     local color="$red" msg="ERROR"
-    [[ "$1" = "-w" ]] && color="$pink" && msg="WARNING"
-    echo -e "  $color*$normal [$color $msg!!$normal ] ${@/-w/}" >&2
+    [[ "$1" = "-w" ]] && color="$pink" && msg="WARNING" && shift
+    echo -e "  $color*$normal [$color $msg!!$normal ] ${@}" >&2
 }
 
 die() {
@@ -126,22 +130,22 @@ run_loop() {
 # Usage: echo -e "some text\n$count/$total" | show_progress
 #        echo -e "\n\n"
 # $total is the max number of items, and $count is the current number
-# This function doesn't bother with the length of "some text"
-# It assumes that "some text" fits within the window width. If it doesn't
-# then it is the responsibility of the parent script.
+# This function assumes that "some text" fits within the window width. If
+# it doesn't then it truncates the last parts. Try not to feed in escaped
+# characters like colors, etc, via "some text."
 # The output is of the form
 # some text
 # █████████████████████------------------               190/  203
 show_progress() {
-    local -i cols=$(tput cols) progress=0
+    local -i cols=$(tput cols) counter=0 progress=0
     local -i lesscols=$(( $cols - 12 ))         # ' xxxxx/xxxxx' at end
     printf -vblank "%${lesscols}s" ""
-    local cl="$(tput el)" dash="${blank// /-}" line output
+    local cl="$(tput el)" dash="${blank// /-}" line output rawline
     while read line; do
-        if [[ "$output" ]]; then
+        if [[ $counter -eq 1 ]]; then
             # This is the 2nd line of input $count/$total
+            counter=0
             echo -e "$output$cl"
-            output=""
             progress=$(( $lesscols*${line%/*}/${line#*/} ))
             [[ $progress -eq 0 ]] && progress=1
             echo -ne "$reverse${blank: -${progress}}$normal\
@@ -149,7 +153,14 @@ ${dash:0:$(( $lesscols - $progress ))} \
 $( printf "%5d/%5d" ${line%/*} ${line#*/} )\r"
             tput cuu1
         else
-            output="$line"
+            counter=1
+            #rawline="$( echo "$line" | sed -e 's#\\x1[bB]\[[^m]\+m##g' )"
+            #if [[ "${#rawline}" -gt $cols ]]; then
+            if [[ "${#line}" -gt $cols ]]; then
+                output="${line:0:$(( $cols - 5 ))} ${cyan}...$normal"
+            else
+                output="${line}"
+            fi
         fi
     done
 }
