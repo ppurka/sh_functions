@@ -6,6 +6,7 @@
         #---------------------------------------------------#
 
         #--------------------- Changelog -------------------#
+        # 10/09/2011:   Append -u low to e-notify-send      #
         # 09/03/2011:   Make finding icons more "clever."   #
         #               Cleanups.                           #
         # 02/05/2011:   Stupid POSIX stuff. Make it bash    #
@@ -63,7 +64,7 @@ show_passive() {
         timeout=$(( $timeout * 1000 ))
         [[ -z "$icon" && "$4" ]] && icon="$4"
         icon="$( get_icon "$icon" )"
-        e-notify-send -t $timeout -i "file://$icon" "$1" "$2<br>" &
+        e-notify-send -u low -t $timeout -i "file://$icon" "$1" "$2<br>" &
     else
         /usr/local/bin/displaymessage --center --passive "$1:
 $2" $timeout &

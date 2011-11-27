@@ -6,6 +6,8 @@
         #---------------------------------------------------#
 
         #--------------------- Changelog -------------------#
+        # 11/27/2011:   Allow any single character symbol in#
+        #               centered_output()                   #
         # 09/13/2011:   Make line fit cols in show_progress #
         #               Use counter=0/1 instead of output   #
         #               Fix output of Err -w (use shift)    #
@@ -75,7 +77,7 @@ die() {
     exit 1
 }
 
-# Usage: centered_output dash|blank "text string"
+# Usage: centered_output <symbol>|dash|blank "text string"
 # where text is less than cols characters in length
 centered_output() {
     local cols=$(tput cols)
@@ -86,21 +88,30 @@ centered_output() {
         return
     fi
 
-    # Create D_ASH and BLANK dynamically according to terminal width
+    # Now create the other symbol
+    local symbol=''
+    case "$1" in
+        "blank"|"") ;;
+        "dash")     symbol='-' ;;
+        *)  [[ "${#1}" -ne 1 ]] && die "$1: must be only one symbol"
+            symbol="$1" ;;
+    esac
+
+    # Create SYMB and BLANK dynamically according to terminal width
     # Solution got via google:
     # http://www.unix.com/shell-programming-scripting/46584-repeat-character-printf.html#post302150959
     printf -vBLANK "%${cols}s" ""
-    local D_ASH="${BLANK// /-}"
+    [[ "$symbol" ]] && local SYMB="${BLANK// /${symbol}}"
     local begin=$(( $cols/2 - $len/2 ));    # Length of dash|blank before text
     local end=$(( $cols - $begin - $len )); # Length of dash|blank after text
     if [[ -z "$2" ]]; then
-        if [[ $1 = dash ]]; then echo $D_ASH; return
+        if [[ "$symbol" ]]; then echo $SYMB; return
         else echo; return
         fi
     fi
-    if [[ $1 = dash ]]; then
-        echo -e "${D_ASH:1:$begin}$reverse${2//\\x1[bB]\[0m/\x1b[0m$reverse}\
-$normal${D_ASH:1:$end}"
+    if [[ "$symbol" ]]; then
+        echo -e "${SYMB:1:$begin}$reverse${2//\\x1[bB]\[0m/\x1b[0m$reverse}\
+$normal${SYMB:1:$end}"
     else
         echo -e "${BLANK:1:$begin}$reverse${2//\\x1[bB]\[0m/\x1b[0m$reverse}\
 $normal${BLANK:1:$end}"
