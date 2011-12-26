@@ -1,7 +1,29 @@
 #!/bin/bash
 
-#. `which my_bash_functions`
-# Functions which call this will anyway source the above
+        ###     Functions to assist  in interactive bash input    ###
+        #                                       -ppurka             #
+        #-----------------------------------------------------------#
+
+        #----------------- License: GPL-3 or later -----------------#
+        # Copyright (C) 2007 - 2011  P. Purkayastha                 #
+        # Contact: ppurka _at_ gmail _dot_ com                      #
+        # This program comes with ABSOLUTELY NO WARRANTY;           #
+        # This is free software, and you are welcome to redistribute#
+        # it under certain conditions;                              #
+        #                                                           #
+        # For a brief summary of the license see the file COPYING   #
+        # that is distributed with this program.                    #
+        #                                                           #
+        # For the full text of the license see                      #
+        # http://www.gnu.org/licenses/gpl-3.0.html                  #
+        #-----------------------------------------------------------#
+
+        ###                     Changelog                         ###
+        # 12/26/2011    License information                         #
+        # <12/26/2011   Umpteen number of untracked changes         #
+        #-----------------------------------------------------------#
+
+
 
 # {{{ readfilename comes here
 help_read_filename() {
