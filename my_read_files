@@ -19,6 +19,9 @@
         #-----------------------------------------------------------#
 
         ###                     Changelog                         ###
+        # 02/20/2016    Add a new function call read_dir_oneline    #
+        #               that does not refresh the whole screen, but #
+        #               provides the same functionality in 3 lines  #
         # 12/26/2011    License information                         #
         # <12/26/2011   Umpteen number of untracked changes         #
         #-----------------------------------------------------------#
@@ -66,7 +69,7 @@ trap "_set_rows" WINCH
 
 # Usage read_filename <0|1> [<suffix>]  -- example: read_filename 1 ogg
 read_filename() {
-    
+
     [[ $# -eq 0 ]] && help_read_filename && exit 1
 
     # Declare the following variables
@@ -90,7 +93,7 @@ read_filename() {
 
     # Remember the old pwd:
     local OLD_PWD=`pwd`
-    
+
 
   # Start of outer loop
   while [[ -z $filename || -d "$filename" ]]; do
@@ -105,7 +108,7 @@ read_filename() {
     # clear the screen -- the magic begins from here :)
     clear
     echo        # Avoid condition where top line scrolls off  the screen
-    
+
     # Initial list of the file names found
     find "${INPUT_X}"*"${SUFFIX}" -maxdepth 0 -type f -print 2>/dev/null | \
         head -n $_rows_half
@@ -120,11 +123,11 @@ read_filename() {
         #echo
         centered_output dash " ^ Possible directories ^ "
     }
-    
-    
+
+
     # Do the loop until complete
     while true; do
-        
+
         if [[ $DIR -eq 0 && $_rows_half -ne $_rows_full ]]; then
             _rows_half=$_rows_full
             _rows_half_plus_one=$_rows_full_plus_one
@@ -172,7 +175,7 @@ read_filename() {
         # one directory
         [[ $DIR -eq 1 && "$INPUT_X" = ".." ]] && {
             cd ..
-            INPUT_X= 
+            INPUT_X=
             FILEPATH=`pwd`
         }
 
@@ -204,7 +207,7 @@ read_filename() {
             #echo
             centered_output dash " ^ Possible directories ^ "
         }
-        
+
     done
 
     # Completed inner loop, so $filename is either null or has some info in it.
@@ -226,7 +229,7 @@ read_filename() {
 # A modified read_filename which has only directory listings #{{{
 # Usage read_dirname [<dir>]
 read_dirname() {
-    
+
     # Declare the following variables
     local hilite="\x1b[00;30;42m"
     local filename
@@ -237,7 +240,7 @@ read_dirname() {
 
     # Remember the old pwd:
     local OLD_PWD=`pwd`
-    
+
     _set_rows
 
     # Reinitialize all of these to null
@@ -255,7 +258,7 @@ read_dirname() {
     # Initial list of directories + good looking output
     # echo -ne "\n\n-----^^^^ ${green}Available subject directories$normal
     # ^^^^-----\n\n"
-    
+
     # Do the loop until complete
     while true
     do
@@ -326,7 +329,7 @@ read_dirname() {
 # A modified read_filename which has only directory listings #{{{
 # Usage read_dirname_short [<dir>]
 read_dirname_short() {
-    
+
     # Declare the following variables
     local hilite="\x1b[00;30;42m"
     local filename
@@ -338,7 +341,7 @@ read_dirname_short() {
 
     # Remember the old pwd:
     local OLD_PWD=`pwd`
-    
+
     _set_rows
 
     # Reinitialize all of these to null
@@ -356,7 +359,7 @@ read_dirname_short() {
     # Initial list of directories + good looking output
     # echo -ne "\n\n-----^^^^ ${green}Available subject directories$normal
     # ^^^^-----\n\n"
-    
+
     # Do the loop until complete
     while true
     do
@@ -423,3 +426,112 @@ read_dirname_short() {
     cd "$OLD_PWD"
 
 } #}}}
+
+# Listing of files and directories in only specified directory with         {{{
+# a truncated output that fits only in one line. The truncated output is
+# refreshed and populated with the part that matches the part of the string
+# that is input.
+# This function will output the following:
+#   # One line containing result
+#   # One line containing centered_output
+#   # One line containing input
+# Usage read_dir_oneline <dir> "Centered output text"
+read_dir_oneline() {
+    [[ $# -eq 0 ]]                                          &&
+        echo "Usage: read_dir_oneline <dir> <help text>"    &&
+        return 1
+    [[ ! -d "$1" ]]                                         &&
+        echo "Usage: read_dir_oneline <dir> <help text>"    &&
+        return 1
+
+    # Declare the following variables
+    local hilite="\x1b[00;30;42m"
+    local ctxt="$2"
+    local filename
+    local INPUT_X
+    local INPUT
+    FILEPATH=""
+
+    # Remember the old pwd:
+    local OLD_PWD=`pwd`
+
+    cd "$1"     # Go to the required directory
+    # Blank line
+    # One line containing result
+    # One line containing centered_output
+    # One line containing input
+    for ((i=0; i<4; i++)); do echo; done
+
+    # Start of outer loop
+    while [[ -z $filename ]]; do
+
+        # Reinitialize all of these to null
+        filename=
+        INPUT_X=
+        INPUT=
+
+        # the magic begins from here :)
+        echo -e "\r"
+        for ((i=0; i<3; i++)); do tput cuu1; tput el; done          # Clear above
+        { ls -dx "${INPUT_X}"* 2>/dev/null || echo; } | head -n 1   # List of dirs
+        centered_output dash "$ctxt"                                # help text
+
+        # Do the loop until complete
+        while true; do
+
+            # black on green  -- for completion part
+            tput el
+            if [[ "$INPUT_X" ]]; then
+                echo -ne "\r  $yellow*$normal Enter $ctxt [$INPUT_X$hilite$EXT$normal ?]: $INPUT_X"
+            else
+                infon "Enter $ctxt:"
+            fi
+
+            # Read each character as it is typed
+            read -n 1 INPUT
+
+            # If input is null, then complete the rest of the stuff and dump it
+            # into $filename and exit from this loop
+            if [[ -z "$INPUT" ]]; then
+                if [[ "$INPUT_X" ]]; then
+                    filename="${INPUT_X}${EXT}"
+                    break
+                else
+                    die "No input provided"
+                fi
+            fi
+
+            # Whenever you press a backspace, it sends a non-printable character
+            # delete doesn't work since it sends three (!!) characters and read
+            # takes in only one
+            if echo -e "$INPUT" | egrep -q -e "[[:print:]]"; then
+                INPUT_X="$INPUT_X$INPUT"
+            elif [[ ${#INPUT_X} -gt 0 ]]; then
+                INPUT_X="${INPUT_X:0:$[${#INPUT_X}-1]}"
+            fi
+
+            echo -e "\r"
+            for ((i=0; i<3; i++)); do tput cuu1; tput el; done      # Clear above
+            { ls -dx "${INPUT_X}"* 2>/dev/null || echo;}| head -n 1 # List of dirs
+            centered_output dash "$ctxt"                            # help text
+
+            # If the extended input is non-zero, then we need to find the extension
+            # to it.
+            if [[ "${INPUT_X}" ]]; then
+                EXT=`ls -d1 "${INPUT_X}"* 2>/dev/null | head -n 1 | sed -ne "1s:^${INPUT_X}\(.*\)$:\1:p"`
+            fi
+
+        done
+
+        # Completed inner loop, so $filename is either null or has some info in it.
+        if [[ -z "$FILEPATH" ]]; then
+            FILEPATH="$filename"
+        fi
+    done
+    # Completed outer loop here
+
+    # Return to the dir from which this function was called
+    cd "$OLD_PWD"
+
+}
+# }}}
