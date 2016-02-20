@@ -28,8 +28,8 @@ This repository contains some files which are to be sourced by
 3. **my_read_files**: This file provides several different interactive bash
    prompts which acts like a file browser or directory browser. The output
    file or directory will be present in the environment variable `FILEPATH`
-   after any of these functions exit. There are three different such
-   prompts possible:
+   after any of these functions exit. There are several such functions
+   available:
 
    1. *read_filename*: This gives a listing of files and directories
       starting from the current directory. It will shortlist and highlight
