@@ -95,14 +95,6 @@ die() {
 # Usage: centered_output <symbol>|dash|blank "text string"
 # where text is less than cols characters in length
 centered_output() {
-    local cols=$(tput cols)
-    local len="$(echo "$2" | sed -e 's#\\x1[bB]\[[^m]\+m##g')"
-    len=${#len}
-    if [[ $len -ge $cols ]]; then
-        echo -e "$2"
-        return
-    fi
-
     # Now create the other symbol
     local symbol=''
     case "$1" in
@@ -111,6 +103,16 @@ centered_output() {
         *)  [[ "${#1}" -ne 1 ]] && die "$1: must be only one symbol"
             symbol="$1" ;;
     esac
+    shift
+
+    local cols=$(tput cols)
+    local len="$(echo "$@" | sed -e 's#\\x1[bB]\[[^m]\+m##g')"
+    len=${#len}
+    if [[ $len -ge $cols ]]; then
+        echo -e "$@"
+        return
+    fi
+
 
     # Create SYMB and BLANK dynamically according to terminal width
     # Solution got via google:
@@ -119,16 +121,16 @@ centered_output() {
     [[ "$symbol" ]] && local SYMB="${BLANK// /${symbol}}"
     local begin=$(( $cols/2 - $len/2 ));    # Length of dash|blank before text
     local end=$(( $cols - $begin - $len )); # Length of dash|blank after text
-    if [[ -z "$2" ]]; then
+    if [[ -z "$@" ]]; then
         if [[ "$symbol" ]]; then echo $SYMB; return
         else echo; return
         fi
     fi
     if [[ "$symbol" ]]; then
-        echo -e "${SYMB:1:$begin}$reverse${2//\\x1[bB]\[0m/\x1b[0m$reverse}\
+        echo -e "${SYMB:1:$begin}$reverse${@//\\x1[bB]\[0m/\x1b[0m$reverse}\
 $normal${SYMB:1:$end}"
     else
-        echo -e "${BLANK:1:$begin}$reverse${2//\\x1[bB]\[0m/\x1b[0m$reverse}\
+        echo -e "${BLANK:1:$begin}$reverse${@//\\x1[bB]\[0m/\x1b[0m$reverse}\
 $normal${BLANK:1:$end}"
     fi
 }
