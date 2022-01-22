@@ -167,23 +167,29 @@ run_loop() {
 show_progress() {
     local -i cols=$(tput cols) counter=0 progress=0
     local -i lesscols=$(( $cols - 12 ))         # ' xxxxx/xxxxx' at end
+    local -i count total
     printf -vblank "%${lesscols}s" ""
-    local cl="$(tput el)" dash="${blank// /-}" line output rawline
+    local cl="$(tput el)" dash="${blank// /-}" line output
     while read line; do
         if [[ $counter -eq 1 ]]; then
             # This is the 2nd line of input $count/$total
+
+            # if total is less than count then reset it to count
+            count=${line%/*}
+            total=${line#*/}
+            [[ $total -lt $count ]] && total=$count
+
             counter=0
             echo -e "$output$cl"
-            progress=$(( $lesscols*${line%/*}/${line#*/} ))
-            [[ $progress -eq 0 ]] && progress=1
+            progress=$(( $lesscols * ${count} / ${total} ))
+            [[ $progress -le 0 ]] && progress=1
             echo -ne "$reverse${blank: -${progress}}$normal\
 ${dash:0:$(( $lesscols - $progress ))} \
-$( printf "%5d/%5d" ${line%/*} ${line#*/} )\r"
+$( printf "%5d/%5d" ${count} ${total} )\r"
             tput cuu1
+
         else
             counter=1
-            #rawline="$( echo "$line" | sed -e 's#\\x1[bB]\[[^m]\+m##g' )"
-            #if [[ "${#rawline}" -gt $cols ]]; then
             if [[ "${#line}" -gt $cols ]]; then
                 output="${line:0:$(( $cols - 5 ))} ${cyan}...$normal"
             else
