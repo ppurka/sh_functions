@@ -46,11 +46,17 @@ e_remote() {
 
 # Usage: get_icon [icon_name[.extension]]
 get_icon() {
+    local locate="$(which locate)"
+    local extra_args="-H -q"
+    if [[ "$(readlink -f $locate)" = */plocate ]]; then
+        extra_args=""
+    fi
+
     local icon=""
     if [[ "$1" = *.png || "$1" = *.svg ]]; then
-        icon="$( locate -H -l 1 -q --regex "$1$" )"
+        icon="$( locate ${extra_args} -l 1 --regex "$1$" )"
     elif [[ "$1" ]]; then
-        icon="$( locate -H -l 1 -q --regex "$1.(png|svg)$" )"
+        icon="$( locate ${extra_args} -l 1 --regex "$1.(png|svg)$" )"
     fi
     if [[ "$icon" ]]; then
         echo "$icon"
